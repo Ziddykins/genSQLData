@@ -12,7 +12,7 @@ chmod +x genSQLData.pl
 |   :---:    |    :---:  |--------------|
 | I  | # | Integer - Number between 1 and 5000, or 1 and the argument specified |
 | B  | None | Boolean - 'True' or 'False' |
-| D  | None | Date - 'YYYY-MM-DD hh:mm:ss' format |
+| D  | T | Date - 'YYYY-MM-DD hh:mm:ss' format - if 'T' is supplied as an argument, NOW() is supplied |
 | F  | None | First name, picks a random one from hard-coded list |
 | L  | None | Last name, picks a random one from hard-coded list  |
 | N  | None | NULL |
