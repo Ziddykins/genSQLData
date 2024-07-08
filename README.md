@@ -6,31 +6,20 @@ Generates data for SQL tables using a string of identifiers
 chmod +x genSQLData.pl
 ./genSQLData.pl --table <table_name> --columns <space-separated list of column names> --count <# of rows> '<identifiers'
 ```
- 48     Identifiers:
- 49     |   I    - Integer - Number between 1 and 5000
- 50     |   B    - Boolean - 'True' or 'False'
- 51     |   D    - Date - 'YYYY-MM-DD hh:mm:ss' format
- 52     |   F    - First name, picks a random one
- 53     |   L    - Last name, picks a random one
- 54     |   N    - NULL
- 55     |   P    - Phone number - xxx-xxx-xxxx
- 56     |   E    - Random first name and random word from lorem for domain
- 57     |   IP   - IP address - May be private
- 58     |   CC:# - Credit card - randomly generated CC, probably not valid
- 59     |   V:#  - A randomly generated sentence of # words long
+
 ## Identifiers
 | Identifier | Arguments |  Description |
-|------------|-----------|--------------|
-| I  | None | |
-| B  | None | |
-| D  | None | |
-| F  | None | |
-| L  | None | |
-| N  | None | |
-| P  | None | |
-| E  | None | |
-| V  |  #   | |
-| IP | None | |
-| PW | # | | |
-| CC | DI, MC, V | |
+|   :---:    |    :---:  |--------------|
+| I  | # | Integer - Number between 1 and 5000, or 1 and the argument specified |
+| B  | None | Boolean - 'True' or 'False' |
+| D  | None | Date - 'YYYY-MM-DD hh:mm:ss' format |
+| F  | None | First name, picks a random one from hard-coded list |
+| L  | None | Last name, picks a random one from hard-coded list  |
+| N  | None | NULL |
+| P  | None | Phone number in the format of xxx-xxx-xxxx |
+| E  | None | Email - Picks a random first name and a random word from the lorem ipsum for the domain |
+| V  |  #   |  Varchar of <arg> length, pulls words from lorem ipsum |
+| IP | None | Random IP address, could very well be a local IP address |
+| PW | # | Generates a random uppercase password of <arg> length, or length of 10 if omitted |
+| CC | DI, MC, V | Generates a probably-invalid credit card, follows the first digits of actual cards if arg is specified |
 
