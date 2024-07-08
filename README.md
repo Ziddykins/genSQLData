@@ -23,3 +23,10 @@ chmod +x genSQLData.pl
 | PW | # | Generates a random uppercase password of <arg> length, or length of 10 if omitted |
 | CC | DI, MC, V | Generates a probably-invalid credit card, follows the first digits of actual cards if arg is specified |
 
+## Arguments
+Arguments are supplied by appending them after a colon, on an identifier:
+```
+V:25  = varchar string of 25 words
+D:T   = date, using NOW()
+CC:MC = credit card with Mastercard IIN ranges
+```
