@@ -19,16 +19,18 @@ chmod +x genSQLData.pl
  58     |   CC:# - Credit card - randomly generated CC, probably not valid
  59     |   V:#  - A randomly generated sentence of # words long
 ## Identifiers
-| Identifier | Description | Arguments  |
-|------------|-------------|------------|
-| I | | |
-| B | | |
-| D | | |
-| F | | |
-| L | | |
-| N | | |
-| P | | |
-| E | | |
-| IP | | |
-| CC | | |
-| V | | |
+| Identifier | Arguments |  Description |
+|------------|-----------|--------------|
+| I  | None | |
+| B  | None | |
+| D  | None | |
+| F  | None | |
+| L  | None | |
+| N  | None | |
+| P  | None | |
+| E  | None | |
+| V  |  #   | |
+| IP | None | |
+| PW | # | | |
+| CC | DI, MC, V | |
+
