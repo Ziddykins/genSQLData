@@ -30,3 +30,7 @@ V:25  = varchar string of 25 words
 D:T   = date, using NOW()
 CC:MC = credit card with Mastercard IIN ranges
 ```
+
+## Attribution
+1. First names: https://raw.githubusercontent.com/dominictarr/random-name/master/first-names.txt
+2. Last names: https://raw.githubusercontent.com/Microsoft/elfie-arriba/master/XForm/XForm.Generator/Data/LastNames.txt
