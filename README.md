@@ -4,7 +4,8 @@ Generates data for SQL tables using a string of identifiers
 ## Usage
 ```
 chmod +x genSQLData.pl
-./genSQLData.pl --table <table_name> --columns <space-separated list of column names> --count <# of rows> '<identifiers'
+./genSQLData.pl --help
+./genSQLData.pl --table tbl_users --columns email password last_login logged_in ip_address date_registered title first_name last_name verified first_login user_name --count 25 'E;PW:15;D:T;B;IP;D;L;F;L;B;D;F'
 ```
 
 ## Identifiers
@@ -13,12 +14,12 @@ chmod +x genSQLData.pl
 | I  | # | Integer - Number between 1 and 5000, or 1 and the argument specified |
 | B  | None | Boolean - 'True' or 'False' |
 | D  | T | Date - 'YYYY-MM-DD hh:mm:ss' format - if 'T' is supplied as an argument, NOW() is supplied |
-| F  | None | First name, picks a random one from hard-coded list |
-| L  | None | Last name, picks a random one from hard-coded list  |
+| F  | None | First name, picks a random one from first.txt |
+| L  | None | Last name, picks a random one from last.txt
 | N  | None | NULL |
 | P  | None | Phone number in the format of xxx-xxx-xxxx |
 | E  | None | Email - Picks a random first name and a random word from the lorem ipsum for the domain |
-| V  |  #   |  Varchar of <arg> length, pulls words from lorem ipsum |
+| V  |  #   |  Varchar of <arg> length, pulls words from ipsum.txt |
 | IP | None | Random IP address, could very well be a local IP address |
 | PW | # | Generates a random uppercase password of <arg> length, or length of 10 if omitted |
 | CC | DI, MC, V | Generates a probably-invalid credit card, follows the first digits of actual cards if arg is specified |
