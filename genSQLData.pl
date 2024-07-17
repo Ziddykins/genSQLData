@@ -7,7 +7,8 @@ use utf8;
 use Getopt::Long;
 
 my ($count, $table);
-my ($first, $last, $ipsum);
+my ($file_firstnames, $file_lastnames, $ipsum);
+my (@first_names, @last_names, @lorem_ipsum);
 
 my @columns;
 
@@ -15,69 +16,33 @@ GetOptions(
   'columns|c=s{1,}' => \@columns,
   'count|r=i'       => \$count,
   'table|t=s'       => \$table,
-  'first|f=s'       => \$first,
-  'last|l=s'        => \$last,
+  'first|f=s'       => \$file_firstnames,
+  'last|l=s'        => \$file_lastnames,
   'ipsum|i=s'       => \$ipsum,
   'help|?+'         => sub { help() },
 );
 
-if (scalar @ARGV < 1) {
-    help();
-    die;
-}
-
-$first //= 'first.txt';
-$last  //= 'last.txt';
+$file_firstnames //= 'first.txt';
+$file_lastnames  //= 'last.txt';
 $ipsum //= 'ipsum.txt';
+$count //= 25;
 
-sub help {
-    print <<EOF;
-- MySQL Example Data Generator -
-Usage:
-    ./$0 --table <table> --count <#rows> --columns <column1 column2> <identifiers>
-
-    Identifiers:
-        I[:#]        - Integer - Number between 1 and 5000
-        B            - Boolean - 'True' or 'False'
-        M            - Currency in the format of #.##
-        D[:T]        - Date - 'YYYY-MM-DD hh:mm:ss' format
-        F            - First name, picks a random one
-        L            - Last name, picks a random one
-        N            - NULL
-        P            - Phone number - xxx-xxx-xxxx
-        E            - Email - Random first name for sender and random word from lorem for domain
-        IP           - IP address - May be private
-        CC[:MC|V|DI] - Credit card - randomly generated CC, probably not valid
-        V[:#]        - A randomly generated sentence of # words long
-        PW[:#]       - Randomly generated password of # length
-
-    Examples:
-        ./$0 --table tbl_mail --columns id account_id to from subject message date read important --count 25 'I;I;E;E;V:5;V:25;D;B;B'
-EOF
+if (!$table) {
+    help();
+    die "Need to supply --table\n";
 }
 
-my (@first_names, @last_names, @lorem_ipsum);
+if (!scalar @columns) {
+    help();
+    die "Need to supply at least one --column\n";
+}
 
-open my $fh_fn, '<', $first;
-    @first_names = <$fh_fn>;
-close $fh_fn;
 
-open my $fh_ln, '<', $last;
-    @last_names = <$fh_ln>;
-close $fh_ln;
 
-open my $fh_li, '<', $ipsum;
-    @lorem_ipsum = split / /, <$fh_li>;
-close $fh_li;
-
+load_data();
 
 my @data    = split /;/, shift;
 my $out_data;
-
-
-print scalar @first_names . " first names\n";
-print scalar @last_names  . " last names\n";
-print scalar @lorem_ipsum . " lorem ipsum words\n";
 
 for (1 .. $count) {
     $out_data = "INSERT INTO `$table` (`" . join('`, `', @columns) . "`) VALUES (";
@@ -89,12 +54,12 @@ for (1 .. $count) {
         die "Column count ($column_count) doesn't match the received indicator count ($data_count)\n";
     }
 
-    for (my $i=0; $i<scalar @data - 1; $i++) {
+    for (my $i=0; $i<scalar @data; $i++) {
         my ($type, $args) = split /:/, $data[$i];
 
         if ($type eq 'V') {
             my $string;
-            my $word_count = $args ? $args : 25;
+            $args //= 25;
             for (1 .. $args) {
                 chomp (my $word = $lorem_ipsum[int(rand(scalar @lorem_ipsum)-1)]);
                 $string .= $word . ' ';
@@ -104,7 +69,7 @@ for (1 .. $count) {
             my $name = $type eq 'F'
                 ? $first_names[int(rand(scalar @first_names)-1)]
                 : $last_names[int(rand(scalar @last_names)-1)];
-                chomp $name;
+            chomp $name;
             $out_data .= "'$name'";
         } elsif ($type eq 'B') {
             my $pick = int(rand(2)) ? 'True' : 'False';
@@ -113,15 +78,16 @@ for (1 .. $count) {
             if ($args && $args eq 'T') {
                 $out_data .= "NOW()";
             } else {
-                my ($year, $month, $day, $hour, $min, $sec) = (int(rand(14)+2024),int(rand(12)+1),int(rand(28)+1),int(rand(23)+1),int(rand(59)+1),int(rand(59)+1));
+                my ($year, $month, $day, $hour, $min, $sec) =
+                    (int(rand(14)+2024),int(rand(12)+1),int(rand(28)+1),int(rand(23)+1),int(rand(59)+1),int(rand(59)+1));
                 my $date = sprintf("%d-%02d-%02d %02d:%02d:%02d", $year, $month, $day, $hour, $min, $sec);
                 $out_data .= "'$date'";
             }
         } elsif ($type eq 'N') {
             $out_data .= "NULL";
         } elsif ($type eq 'I') {
-            my $max = $args ? $args : 5000;
-            my $num = int(rand($max));
+            my $args //= 5000;
+            my $num = int(rand($args));
             $out_data .= "$num";
         } elsif ($type eq 'P') {
             my ($area, $district, $ending) = (int(rand(999)), int(rand(999)), int(rand(9999)));
@@ -147,7 +113,7 @@ for (1 .. $count) {
         } elsif ($type eq 'M') {
             my $amount = sprintf("%d.%02d", int(rand(1000)+1), int(rand(99)+1));
             $out_data .= "'$amount'";
-        } elsif ($type eq 'C') {
+        } elsif ($type eq 'CC') {
             my $cc = ($args eq 'MC' ? 2720 : $args eq 'V' ? 4724 : $args eq 'DI' ? 6011 : 1234);
             for (1 .. 3) {
                 $cc .= sprintf(" %04d", int(rand(9999)+1));
@@ -155,12 +121,17 @@ for (1 .. $count) {
             $out_data .= "'$cc'";
         } elsif ($type eq 'PW') {
             my $password;
-            my $max = $args ? $args : 10;
+            $args //= 10;
 
-            for (1 .. $max) {
+            for (1 .. $args) {
                 $password .= chr(int(rand(25)+65));
             }
             $out_data .= "'$password'";
+        } elsif ($type eq 'FL') {
+            my $word = $lorem_ipsum[int(rand(scalar @lorem_ipsum))];
+            $args //= 'txt';
+            my $filename = "$word.$args";
+            $out_data .= "'$filename'";
         } else {
             die "Invalid data in data string: '$type'\n";
         }
@@ -168,4 +139,52 @@ for (1 .. $count) {
     }
     $out_data =~ s/, $//;
     print $out_data . ");\n\n";
+}
+
+sub load_data {
+    open my $fh_fn, '<', $file_firstnames;
+        @first_names = <$fh_fn>;
+    close $fh_fn;
+
+    open my $fh_ln, '<', $file_lastnames;
+        @last_names = <$fh_ln>;
+    close $fh_ln;
+
+    open my $fh_li, '<', $ipsum;
+        @lorem_ipsum = split / /, <$fh_li>;
+    close $fh_li;
+
+    print scalar @first_names . " first names loaded\n";
+    print scalar @last_names  . " last names loaded\n";
+    print scalar @lorem_ipsum . " lorem ipsum words loaded\n";
+}
+
+sub help {
+    print <<HELP;
+- MySQL Example Data Generator -
+Usage:
+    ./$0 --table <table> --count <#rows> --columns <column1 column2> <identifiers>
+
+    Identifiers:
+        I[:#]        - Integer - Number between 1 and 5000
+        B            - Boolean - 'True' or 'False'
+        M            - Currency in the format of #.##
+        D[:T]        - Date - 'YYYY-MM-DD hh:mm:ss' format - if T is supplied as an argument,
+                       NOW() is supplied
+        F            - First name, picks a random one
+        L            - Last name, picks a random one
+        N            - NULL
+        P            - Phone number - xxx-xxx-xxxx
+        E            - Email - Random first name for sender and random word from lorem for domain
+        IP           - IP address - May be private
+        CC[:MC|V|DI] - Generates a probably-invalid credit card, follows the first digits
+                       of actual cards if arg is specified
+        V[:#]        - A randomly generated sentence of # words long, good for descriptions
+        PW[:#]       - Randomly generated password of # length
+        LF[:ext]     - Local file name, takes random word from lorem and appends .txt,
+                       or supplied extension
+
+    Examples:
+        ./$0 --table tbl_mail --columns id account_id to from subject message date read important --count 25 'I;I;E;E;V:5;V:25;D;B;B'
+HELP
 }
