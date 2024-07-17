@@ -65,7 +65,7 @@ for (1 .. $count) {
                 $string .= $word . ' ';
             }
             $out_data .= "'$string'";
-        } elsif ($type =~ /[FL]/) {
+        } elsif ($type =~ /^[FL]{1}$/) {
             my $name = $type eq 'F'
                 ? $first_names[int(rand(scalar @first_names)-1)]
                 : $last_names[int(rand(scalar @last_names)-1)];
@@ -127,7 +127,7 @@ for (1 .. $count) {
                 $password .= chr(int(rand(25)+65));
             }
             $out_data .= "'$password'";
-        } elsif ($type eq 'FL') {
+        } elsif ($type eq 'LF') {
             my $word = $lorem_ipsum[int(rand(scalar @lorem_ipsum))];
             $args //= 'txt';
             my $filename = "$word.$args";
