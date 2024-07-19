@@ -24,7 +24,7 @@ chmod +x genSQLData.pl
 | PW | # | Generates a random uppercase password of <arg> length, or length of 10 if omitted |
 | CC | DI, MC, V | Generates a probably-invalid credit card, follows the first digits of actual cards if arg is specified |
 | LF | ext | Local file name, .txt unless extension is provided |
-| FP | file | Unix-style path, just the path unless filename is provided, can't nest |
+| FP | file | Unix-style path, just the path unless filename is provided, reads from paths.txt |
 
 ## Arguments
 Arguments are supplied by appending them after a colon, on an identifier:
