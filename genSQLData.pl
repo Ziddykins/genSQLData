@@ -37,8 +37,6 @@ if (!scalar @columns) {
     die "Need to supply at least one --column\n";
 }
 
-
-
 load_data();
 
 my @data    = split /;/, shift;
@@ -86,7 +84,7 @@ for (1 .. $count) {
         } elsif ($type eq 'N') {
             $out_data .= "NULL";
         } elsif ($type eq 'I') {
-            my $args //= 5000;
+            $args //= 5000;
             my $num = int(rand($args));
             $out_data .= "$num";
         } elsif ($type eq 'P') {
@@ -132,6 +130,10 @@ for (1 .. $count) {
             $args //= 'txt';
             my $filename = "$word.$args";
             $out_data .= "'$filename'";
+        } elsif ($type eq 'A') {
+            my @choices = split /,/, $args;
+            my $pick = $choices[int(rand(scalar @choices))];
+            $out_data .= "'$pick'";
         } else {
             die "Invalid data in data string: '$type'\n";
         }
@@ -163,7 +165,9 @@ sub help {
     print <<HELP;
 - MySQL Example Data Generator -
 Usage:
-    ./$0 --table <table> --count <#rows> --columns <column1 column2> <identifiers>
+    ./$0 --table <table> --columns <column1 column2> --count <#rows> "<identifiers>"
+    Note: Columns can't be the last flag before the identifiers, and on windows, you
+          must use double quotes instead of single quotes.
 
     Identifiers:
         I[:#]        - Integer - Number between 1 and 5000
@@ -177,6 +181,7 @@ Usage:
         P            - Phone number - xxx-xxx-xxxx
         E            - Email - Random first name for sender and random word from lorem for domain
         IP           - IP address - May be private
+        A[:a,b,c]    - Randomly picks one of the supplied options
         CC[:MC|V|DI] - Generates a probably-invalid credit card, follows the first digits
                        of actual cards if arg is specified
         V[:#]        - A randomly generated sentence of # words long, good for descriptions
