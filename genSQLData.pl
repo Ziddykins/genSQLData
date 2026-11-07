@@ -5,23 +5,21 @@ use warnings;
 use utf8;
 
 use Getopt::Long;
-
-my ($count, $table);
-my ($file_firstnames, $file_lastnames, $ipsum);
-my (@first_names, @last_names, @lorem_ipsum);
-
 my @columns;
+my ($count, $table, $pgsql, $file_firstnames, $file_lastnames, $ipsum);
 
 GetOptions(
-  'columns|c=s{1,}' => \@columns,
-  'count|r=i'       => \$count,
-  'table|t=s'       => \$table,
-  'first|f=s'       => \$file_firstnames,
-  'last|l=s'        => \$file_lastnames,
-  'ipsum|i=s'       => \$ipsum,
-  'help|?+'         => sub { help() },
+    'columns|c=s{1,}' => \@columns,
+    'count|r=i'       => \$count,
+    'table|t=s'       => \$table,
+    'first|f=s'       => \$file_firstnames,
+    'last|l=s'        => \$file_lastnames,
+    'ipsum|i=s'       => \$ipsum,
+    'pgsql|p'         => \$pgsql,
+    'help|?+'         => sub { help() },
 );
 
+my (@first_names, @last_names, @lorem_ipsum);
 $file_firstnames //= 'first.txt';
 $file_lastnames  //= 'last.txt';
 $ipsum //= 'ipsum.txt';
@@ -40,17 +38,21 @@ if (!scalar @columns) {
 load_data();
 
 my @data    = split /;/, shift;
-my $out_data;
+my $data_count   = scalar @data;
+my $column_count = scalar @columns;
+
+if ($data_count != $column_count) {
+    die "Column count ($column_count) doesn't match the received indicator count ($data_count)\n";
+}
+
+for my $i (0 .. $count - 1) {
+    print "Column $columns[$i] will use data type $data[$i]\n";
+}
 
 for (1 .. $count) {
-    $out_data = "INSERT INTO `$table` (`" . join('`, `', @columns) . "`) VALUES (";
-
-    my $data_count   = scalar @data;
-    my $column_count = scalar @columns;
-
-    if ($data_count != $column_count) {
-        die "Column count ($column_count) doesn't match the received indicator count ($data_count)\n";
-    }
+    my @values;
+    my $out_data = !$pgsql ? "INSERT INTO `$table` (`" . join("\Q`, `", @columns) . "\E`) VALUES ("
+                           : "INSERT INTO $table (" . join(", \Q", @columns) . "\E) VALUES (";
 
     for (my $i=0; $i<scalar @data; $i++) {
         my ($type, $args) = split /:/, $data[$i];
@@ -62,16 +64,16 @@ for (1 .. $count) {
                 chomp (my $word = $lorem_ipsum[int(rand(scalar @lorem_ipsum)-1)]);
                 $string .= $word . ' ';
             }
-            $out_data .= "'$string'";
+            push(@values, "'$string'");
         } elsif ($type =~ /^[FL]{1}$/) {
             my $name = $type eq 'F'
                 ? $first_names[int(rand(scalar @first_names)-1)]
                 : $last_names[int(rand(scalar @last_names)-1)];
             chomp $name;
-            $out_data .= "'$name'";
+            push(@values, "'$name'");
         } elsif ($type eq 'B') {
             my $pick = int(rand(2)) ? 'True' : 'False';
-            $out_data .= "'$pick'";
+            push(@values, "'$pick'");
         } elsif ($type eq 'D') {
             if ($args && $args eq 'T') {
                 $out_data .= "NOW()";
@@ -79,18 +81,18 @@ for (1 .. $count) {
                 my ($year, $month, $day, $hour, $min, $sec) =
                     (int(rand(14)+2024),int(rand(12)+1),int(rand(28)+1),int(rand(23)+1),int(rand(59)+1),int(rand(59)+1));
                 my $date = sprintf("%d-%02d-%02d %02d:%02d:%02d", $year, $month, $day, $hour, $min, $sec);
-                $out_data .= "'$date'";
+                push(@values, "'$date'");
             }
         } elsif ($type eq 'N') {
-            $out_data .= "NULL";
+            push(@values, "NULL");
         } elsif ($type eq 'I') {
             $args //= 5000;
             my $num = int(rand($args));
-            $out_data .= "$num";
+            push(@values, "$num");
         } elsif ($type eq 'P') {
             my ($area, $district, $ending) = (int(rand(999)), int(rand(999)), int(rand(9999)));
             my $number = sprintf("%03d-%03d-%04d", $area, $district, $ending);
-            $out_data .= "'$number'";
+            push(@values, "'$number'");
         } elsif ($type =~ /IP/) {
             our ($o1, $o2, $o3, $o4);
             $o1 = int(rand(255)+1);
@@ -100,23 +102,23 @@ for (1 .. $count) {
             }
             use strict 'refs';
             my $ip = "$o1.$o2.$o3.$o4";
-            $out_data .= "'$ip'";
+            push(@values, "'$ip'");
         } elsif ($type eq 'E') {
             chomp(my $sender = $first_names[int(rand(scalar @first_names)-1)]);
-            chomp($sender    = $last_names[int(rand(scalar @last_names)-1)]);
+            chomp($sender   .= $last_names[int(rand(scalar @last_names)-1)]);
             chomp(my $domain = $lorem_ipsum[int(rand(scalar @lorem_ipsum)-1)]);
-            my $email = "$sender\@$domain.com";
+            my $email = "'$sender\@${domain}.com'";
 
-            $out_data .= "'$email'";
+            push(@values, $email);
         } elsif ($type eq 'M') {
             my $amount = sprintf("%d.%02d", int(rand(1000)+1), int(rand(99)+1));
-            $out_data .= "'$amount'";
+            push(@values, "'$amount'");
         } elsif ($type eq 'CC') {
             my $cc = ($args eq 'MC' ? 2720 : $args eq 'V' ? 4724 : $args eq 'DI' ? 6011 : 1234);
             for (1 .. 3) {
                 $cc .= sprintf(" %04d", int(rand(9999)+1));
             }
-            $out_data .= "'$cc'";
+            push(@values, "'$cc'");
         } elsif ($type eq 'PW') {
             my $password;
             $args //= 10;
@@ -124,23 +126,54 @@ for (1 .. $count) {
             for (1 .. $args) {
                 $password .= chr(int(rand(25)+65));
             }
-            $out_data .= "'$password'";
+            push(@values, "'$password'");
         } elsif ($type eq 'LF') {
             my $word = $lorem_ipsum[int(rand(scalar @lorem_ipsum))];
             $args //= 'txt';
             my $filename = "$word.$args";
-            $out_data .= "'$filename'";
+            push(@values, "'$filename'");
         } elsif ($type eq 'A') {
             my @choices = split /,/, $args;
             my $pick = $choices[int(rand(scalar @choices))];
-            $out_data .= "'$pick'";
+            push(@values, "'$pick'");
+        } elsif ($type eq 'UU') {
+            my $uuid = sprintf(
+                "%s-%04d-%04d-%04d-%s", 
+                gen_random_str(8),
+                int rand 9999,
+                int rand 9999,
+                int rand 9999,
+                gen_random_str(12)
+            );
+            push(@values, "'$uuid'");
         } else {
             die "Invalid data in data string: '$type'\n";
         }
-        $out_data .= ', ';
+
     }
-    $out_data =~ s/, $//;
-    print $out_data . ");\n\n";
+
+    $out_data .= join(', ', @values);
+    $out_data .= ");\n\n";
+    print $out_data;
+}
+
+sub gen_random_str {
+    my $length = $_[0];
+    my $out;
+
+    for (1 .. $length) {
+        my $pick = int rand 2;
+        my $start = 48;
+        my $end = 58;
+
+        if ($pick) {
+            $start = 97;
+            $end = 102;
+        }
+
+        $out .= chr(int(rand($end - $start) + $start));
+    }
+    return $out;
 }
 
 sub load_data {
@@ -155,6 +188,10 @@ sub load_data {
     open my $fh_li, '<', $ipsum;
         @lorem_ipsum = split / /, <$fh_li>;
     close $fh_li;
+
+    s/[\r\n]+/\n/g for @first_names;
+    s/[\r\n]+/\n/g for @last_names;
+    s/[\r\n]+/\n/g for @lorem_ipsum;
 
     print scalar @first_names . " first names loaded\n";
     print scalar @last_names  . " last names loaded\n";
@@ -179,15 +216,16 @@ Usage:
         L            - Last name, picks a random one
         N            - NULL
         P            - Phone number - xxx-xxx-xxxx
-        E            - Email - Random first name for sender and random word from lorem for domain
+        E            - Email - Random first and last name for sender and lorem word for domain
         IP           - IP address - May be private
-        A[:a,b,c]    - Randomly picks one of the supplied options
+        A:a,b,c      - Randomly picks one of the supplied options
         CC[:MC|V|DI] - Generates a probably-invalid credit card, follows the first digits
                        of actual cards if arg is specified
         V[:#]        - A randomly generated sentence of # words long, good for descriptions
         PW[:#]       - Randomly generated password of # length
         LF[:ext]     - Local file name, takes random word from lorem and appends .txt,
                        or supplied extension
+        UU           - Random UUID-shaped string (not necessarily a valid UUID)
 
     Examples:
         ./$0 --table tbl_mail --columns id account_id to from subject message date read important --count 25 'I;I;E;E;V:5;V:25;D;B;B'
