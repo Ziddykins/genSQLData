@@ -6,7 +6,7 @@ use utf8;
 
 use Getopt::Long;
 my @columns;
-my ($count, $table, $pgsql, $file_firstnames, $file_lastnames, $ipsum);
+my ($count, $table, $pgsql, $file_paths, $file_firstnames, $file_lastnames, $ipsum);
 
 GetOptions(
     'columns|c=s{1,}' => \@columns,
@@ -14,15 +14,17 @@ GetOptions(
     'table|t=s'       => \$table,
     'first|f=s'       => \$file_firstnames,
     'last|l=s'        => \$file_lastnames,
+    'paths|f=s'       => \$file_paths,
     'ipsum|i=s'       => \$ipsum,
     'pgsql|p'         => \$pgsql,
     'help|?+'         => sub { help() },
 );
 
-my (@first_names, @last_names, @lorem_ipsum);
+my (@first_names, @last_names, @lorem_ipsum, @paths);
 $file_firstnames //= 'first.txt';
 $file_lastnames  //= 'last.txt';
 $ipsum //= 'ipsum.txt';
+$file_paths //= 'paths.txt';
 $count //= 25;
 
 if (!$table) {
@@ -37,7 +39,7 @@ if (!scalar @columns) {
 
 load_data();
 
-my @data    = split /;/, shift;
+my @data         = split /;/, shift;
 my $data_count   = scalar @data;
 my $column_count = scalar @columns;
 
@@ -51,19 +53,26 @@ for my $i (0 .. $count - 1) {
 
 for (1 .. $count) {
     my @values;
-    my $out_data = !$pgsql ? "INSERT INTO `$table` (`" . join("\Q`, `", @columns) . "\E`) VALUES ("
-                           : "INSERT INTO $table (" . join(", \Q", @columns) . "\E) VALUES (";
-
+    my $out_data = !$pgsql ? "INSERT INTO `$table` (`" . join("`, `", @columns) . "`) VALUES ("
+                           : "INSERT INTO $table (" . join(", ", @columns) . ") VALUES (";
+    #D;I;UU;FN:2;FP:2:ext
     for (my $i=0; $i<scalar @data; $i++) {
-        my ($type, $args) = split /:/, $data[$i];
+        my @parts = split /:/, $data[$i];
+        my ($type, $arg, @alt);
+        
+        $type = $parts[0];
+        $arg  = $parts[1] if $parts[1];
+        @alt  = split /,/, $parts[2] if $parts[2];
 
         if ($type eq 'V') {
             my $string;
-            $args //= 25;
-            for (1 .. $args) {
+            my @words;
+            $arg //= 25;
+            for (1 .. $arg) {
                 chomp (my $word = $lorem_ipsum[int(rand(scalar @lorem_ipsum)-1)]);
-                $string .= $word . ' ';
+                push @words, $word;
             }
+            $string = join(' ', @words);
             push(@values, "'$string'");
         } elsif ($type =~ /^[FL]{1}$/) {
             my $name = $type eq 'F'
@@ -75,19 +84,22 @@ for (1 .. $count) {
             my $pick = int(rand(2)) ? 'True' : 'False';
             push(@values, "'$pick'");
         } elsif ($type eq 'D') {
-            if ($args && $args eq 'T') {
-                $out_data .= "NOW()";
+            my $val;
+            if ($arg && $arg eq 'T') {
+                $val = "NOW()";
+
             } else {
                 my ($year, $month, $day, $hour, $min, $sec) =
                     (int(rand(14)+2024),int(rand(12)+1),int(rand(28)+1),int(rand(23)+1),int(rand(59)+1),int(rand(59)+1));
                 my $date = sprintf("%d-%02d-%02d %02d:%02d:%02d", $year, $month, $day, $hour, $min, $sec);
-                push(@values, "'$date'");
+                $val = "'$date'";
             }
+            push(@values, $val);
         } elsif ($type eq 'N') {
             push(@values, "NULL");
         } elsif ($type eq 'I') {
-            $args //= 5000;
-            my $num = int(rand($args));
+            $arg //= 5000;
+            my $num = int(rand($arg));
             push(@values, "$num");
         } elsif ($type eq 'P') {
             my ($area, $district, $ending) = (int(rand(999)), int(rand(999)), int(rand(9999)));
@@ -114,27 +126,22 @@ for (1 .. $count) {
             my $amount = sprintf("%d.%02d", int(rand(1000)+1), int(rand(99)+1));
             push(@values, "'$amount'");
         } elsif ($type eq 'CC') {
-            my $cc = ($args eq 'MC' ? 2720 : $args eq 'V' ? 4724 : $args eq 'DI' ? 6011 : 1234);
+            my $cc = ($arg eq 'MC' ? 2720 : $arg eq 'V' ? 4724 : $arg eq 'DI' ? 6011 : 1234);
             for (1 .. 3) {
                 $cc .= sprintf(" %04d", int(rand(9999)+1));
             }
             push(@values, "'$cc'");
         } elsif ($type eq 'PW') {
             my $password;
-            $args //= 10;
+            $arg //= 10;
 
-            for (1 .. $args) {
+            for (1 .. $arg) {
                 $password .= chr(int(rand(25)+65));
             }
             push(@values, "'$password'");
-        } elsif ($type eq 'LF') {
-            my $word = $lorem_ipsum[int(rand(scalar @lorem_ipsum))];
-            $args //= 'txt';
-            my $filename = "$word.$args";
-            push(@values, "'$filename'");
         } elsif ($type eq 'A') {
-            my @choices = split /,/, $args;
-            my $pick = $choices[int(rand(scalar @choices))];
+            @alt = split /,/, $arg;
+            my $pick = $alt[int(rand(scalar @alt))];
             push(@values, "'$pick'");
         } elsif ($type eq 'UU') {
             my $uuid = sprintf(
@@ -146,6 +153,26 @@ for (1 .. $count) {
                 gen_random_str(12)
             );
             push(@values, "'$uuid'");
+        } elsif ($type eq "LP") {
+            my ($count, $file_ext) = ($arg, $alt[0]);
+            my ($filename, $lp);
+            $lp = "/";
+            $count //= 4;
+
+            if ($file_ext) {
+                my $word = $lorem_ipsum[int(rand(scalar @lorem_ipsum))];
+                $filename = "$word.$file_ext";
+            }
+
+            for (1 .. $count) {
+                chomp($lp .= $paths[int(rand(scalar @paths))]);
+            }
+
+            if ($filename) {
+                $lp .= $filename;
+            }
+
+            push(@values, "'$lp'");
         } else {
             die "Invalid data in data string: '$type'\n";
         }
@@ -189,13 +216,19 @@ sub load_data {
         @lorem_ipsum = split / /, <$fh_li>;
     close $fh_li;
 
+    open my $fh_paths, '<', $file_paths;
+        @paths = <$fh_paths>;
+    close $fh_paths;
+
     s/[\r\n]+/\n/g for @first_names;
     s/[\r\n]+/\n/g for @last_names;
     s/[\r\n]+/\n/g for @lorem_ipsum;
+    s/[\r\n]+/\n/g for @paths;
 
     print scalar @first_names . " first names loaded\n";
     print scalar @last_names  . " last names loaded\n";
     print scalar @lorem_ipsum . " lorem ipsum words loaded\n";
+    print scalar @paths       . " paths loaded\n";
 }
 
 sub help {
